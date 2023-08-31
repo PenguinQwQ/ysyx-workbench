@@ -27,6 +27,7 @@ static const uint32_t img [] = {
 
 static void restart() {
   /* Set the initial program counter. */
+  /* A simple BIOS restriction */
   cpu.pc = RESET_VECTOR;
 
   /* The zero register is always 0. */

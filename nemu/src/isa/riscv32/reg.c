@@ -24,6 +24,12 @@ const char *regs[] = {
 };
 
 void isa_reg_display() {
+  printf("Register          Hexadecimal Value            Integer Decimal Value\n"); 
+  for (int i = 0 ; i <= 31 ; i++)
+    {
+      printf("%s                     0x%x                             %d\n", regs[i], cpu.gpr[i], cpu.gpr[i]);
+    }
+printf("pc                     0x%x                     %d\n", cpu.pc, cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
