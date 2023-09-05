@@ -18,6 +18,25 @@
 
 #include <common.h>
 
+//Watchpoint definition and declaration section:
+typedef struct watchpoint {
+  int NO; // wp index number
+  struct watchpoint *next;
+
+  /* TODO: Add more members if necessary */
+  char watch_expr[65536]; //save the expression in a char[] string
+  unsigned past_value; //save the past value of expr attained from expr
+} WP;
+
+
+void init_wp_pool();
+WP* new_wp(char *expression);
+void display_all_wp();
+WP* find_no_WP(int id);
+void free_wp(WP *wp);
+
+void scan_all_watchpoints(bool *change);
+
 word_t expr(char *e, bool *success);
 
 #endif

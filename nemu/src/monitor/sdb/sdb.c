@@ -25,6 +25,8 @@ static int is_batch_mode = false;
 void init_regex();
 void init_wp_pool();
 
+
+
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
   static char *line_read = NULL;
@@ -68,6 +70,8 @@ static int cmd_info(char *args)
   char *arg = strtok(NULL, " ");
   if(arg == NULL) Log("The info arg should be r or w, not NULL\n");
   else if(arg != NULL && strcmp(arg, "r") == 0) isa_reg_display();
+  else if(arg != NULL && strcmp(arg, "w") == 0) display_all_wp();
+  else Assert(0, "Should not use any option except for r or w in info command\n");
 //  if(arg == NULL || (*arg != 'r') || (*arg != 'w'))  Log("The info only supports register state observation or watchpoint observation, available usage is info r or info w");
 //  else if (*arg == 'r') isa_reg_display();
   return 0;
@@ -107,12 +111,13 @@ static int cmd_x(char *args)
 static int cmd_p(char *args)
 {
   bool suc = false;
-  uint32_t calc_result = 0;
+  unsigned int calc_result = 0;
   if(args == NULL) Log("Invalid NULL expression, please specify the expression!");
   else calc_result = expr(args, &suc);
   if(suc) 
   {
-    printf("%"PRIu32"\n", calc_result);
+    
+    printf("Decimal Unsigned Value:%"PRIu32"  Hexadecimal Value: 0x%.8x \n", calc_result, calc_result);
     return 0;
   }
   else 
@@ -124,10 +129,16 @@ static int cmd_p(char *args)
 
 static int cmd_w(char *args)
 {
+  Assert(args != NULL, "Invalid watchpoint expression!");
+  WP *new_node = new_wp(args);
+  Assert(new_node != NULL, "Failed to alloc a watchpoint! WP pool is overflow!");
+  Log("New watchpoint NO: %d, on expression %s", new_node->NO, new_node->watch_expr);
   return 0;
 }
 static int cmd_d(char *args)
 {
+  int no = atoi(args);
+  free_wp(find_no_WP(no));
   return 0;
 }
 

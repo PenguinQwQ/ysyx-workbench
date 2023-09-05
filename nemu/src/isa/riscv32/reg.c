@@ -33,5 +33,21 @@ printf("pc                     0x%x                     %d\n", cpu.pc, cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
-  return 0;
+  for (int i = 0 ; i <= 31 ; i++)
+    {
+      if(strcmp(regs[i], s + 1) == 0)
+        {
+          *success = true;
+          return cpu.gpr[i];
+        }
+    }
+
+    if(strcmp("pc", s + 1) == 0)
+        {
+          *success = true;
+          return cpu.pc;
+        }
+    *success = false;
+    Log("Can't find reg with name %s", s + 1);
+    return -1;
 }

@@ -42,17 +42,21 @@ static struct rule {
   {"\\-", TK_SUB},
   {"\\*", TK_MUL}, 
   {"\\/", TK_DIV},
-  {"[0-9]+", TK_DEC},
+  {"0x[0-9a-fA-F]+", TK_HEX},
+  {"(0|[1-9][0-9]*)", TK_DEC}, //avoid hex disturbing and leading zeros in dec is illegal
   {"\\(", TK_LEFTP},
   {"\\)", TK_RIGHTP},
   {"==", TK_EQ},        // equal
-
   //Further expression format
-  {"0x[0-9a-fA-F]+", TK_HEX},
-  {""}
+
+  {"\\$[prsgta\\$][apc0-9]", TK_REG},
+  {"\\!=", TK_NEQ},
+  {"&&", TK_LOGIC_AND},
 };
 
 #define NR_REGEX ARRLEN(rules)
+
+word_t vaddr_read(vaddr_t addr, int len);
 
 static regex_t re[NR_REGEX] = {};
 
@@ -95,8 +99,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-    //    Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-    //        i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -104,22 +108,32 @@ static bool make_token(char *e) {
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
-
+        int pos = 0;
         switch (rules[i].token_type) {
           case TK_NOTYPE: break;
           case TK_ADD: tokens[nr_token++].type = TK_ADD; break;
           case TK_SUB: 
-            if(nr_token == 0 || ((nr_token > 0) && ((tokens[nr_token - 1].type != TK_RIGHTP) && (tokens[nr_token - 1].type != TK_DEC)))) tokens[nr_token++].type = TK_NEG;
+            if(nr_token == 0 || ((nr_token > 0) && ((tokens[nr_token - 1].type != TK_RIGHTP) && (tokens[nr_token - 1].type != TK_DEC) && (tokens[nr_token - 1].type != TK_HEX) && (tokens[nr_token - 1].type != TK_REG)))) tokens[nr_token++].type = TK_NEG;
             else tokens[nr_token++].type = TK_SUB; 
             break;
-          case TK_MUL: tokens[nr_token++].type = TK_MUL; break;
+          case TK_MUL: 
+            if(nr_token == 0 || ((nr_token > 0) && ((tokens[nr_token - 1].type != TK_RIGHTP) && (tokens[nr_token - 1].type != TK_DEC) && (tokens[nr_token - 1].type != TK_HEX) && (tokens[nr_token - 1].type != TK_REG)))) tokens[nr_token++].type = TK_DEREF;
+            else tokens[nr_token++].type = TK_MUL; 
+            break;
           case TK_DIV: tokens[nr_token++].type = TK_DIV; break;
           case TK_LEFTP: tokens[nr_token++].type = TK_LEFTP; break;
           case TK_RIGHTP: tokens[nr_token++].type = TK_RIGHTP; break;
           case TK_EQ: tokens[nr_token++].type = TK_EQ; break;
           case TK_DEC: 
             tokens[nr_token].type = TK_DEC; 
-            int pos = 0;
+            pos = 0;
+            if(*substr_start == '0') //simple 0
+              {
+                tokens[nr_token].str[pos] = '0';
+                tokens[nr_token].str[pos + 1] = '\0';
+                nr_token++;
+                break;
+              }
             while(pos <= 31 && (*substr_start) >= '0' && (*substr_start) <= '9')
             {
               tokens[nr_token].str[pos] = *substr_start;
@@ -128,9 +142,31 @@ static bool make_token(char *e) {
             tokens[nr_token].str[pos] = '\0';
             nr_token++;
             break;
+          case TK_HEX:
+            tokens[nr_token].type = TK_HEX;
+            pos = 0;
+            substr_start += 2;
+            while(pos <= 31 && ((((*substr_start) >= '0' && (*substr_start) <= '9')) || ((*substr_start) >= 'a' && (*substr_start) <= 'f')))
+            {
+              tokens[nr_token].str[pos] = *substr_start;
+              pos++; substr_start++;
+            }
+            tokens[nr_token].str[pos] = '\0';
+            nr_token++;
+            break;       
+          case TK_LOGIC_AND: tokens[nr_token++].type = TK_LOGIC_AND; break;
+          case TK_NEQ: tokens[nr_token++].type = TK_NEQ; break;
+          case TK_REG: 
+            tokens[nr_token].type = TK_REG;
+            //save the reg name into str
+            tokens[nr_token].str[0] = *substr_start++;
+            tokens[nr_token].str[1] = *substr_start++;
+            tokens[nr_token].str[2] = *substr_start;
+            tokens[nr_token].str[3] = '\0';
+            nr_token++;
+            break;
           default: Log("Pattern match fault!"); break;
         }
-
         break;
       }
     }
@@ -177,7 +213,7 @@ bool check_parentheses(int l, int r) //this function is used to check if the far
 }
 
 //debug: fault expr (1 + 2 * 3) -( 4 + 6 / 2) 
-unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the solution for the whole expression is eval(0, nr_token-1)
+unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so the solution for the whole expression is eval(0, nr_token-1)
 {
   if(l > r)
     {
@@ -188,9 +224,18 @@ unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the
   if (l == r)
   {
     if(tokens[l].type == TK_DEC) //Decimal Process
-      return (unsigned int)strtoul(tokens[l].str, NULL, 10);
-    else
-      return 0;
+      return (unsigned)strtoul(tokens[l].str, NULL, 10);
+    if(tokens[l].type == TK_HEX)
+      return (unsigned)strtoul(tokens[l].str, NULL, 16);
+    if(tokens[l].type == TK_REG)
+      {
+        bool suc;
+        word_t val = isa_reg_str2val(tokens[l].str, &suc);
+        if(suc) return val;
+        else Assert(0, "Reg analysis failure!");
+      }
+    Assert(0, "Should not reach here");
+    return 0;
   }
   //else, check if the parenthese can be taken off
   if(check_parentheses(l, r))
@@ -212,7 +257,12 @@ unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the
           continue;
       }
       if(inp > 0 || tokens[i].type == TK_DEC) continue; //in a parenthese, or simple decimal number
-
+      if(inp == 0 && (tokens[i].type == TK_EQ || tokens[i].type == TK_NEQ || tokens[i].type == TK_LOGIC_AND) && (prior >= 1))
+      {
+        main_op = i;
+        prior = 1;
+        continue;
+      }
       if(inp == 0 && (tokens[i].type == TK_ADD || tokens[i].type == TK_SUB) && (prior >= 2))
       {
         main_op = i;
@@ -225,7 +275,7 @@ unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the
         prior = 3;
         continue;
       }
-      if(inp == 0 && (tokens[i].type == TK_NEG) && (prior >= 4))
+      if(inp == 0 && (tokens[i].type == TK_NEG || tokens[i].type == TK_DEREF) && (prior >= 4))
       {
         if(prior > 4) //if it is the first neg, we should place it as a main operator, else use the left.
           main_op = i;
@@ -236,25 +286,31 @@ unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the
     }
 //  Log("main_op is %d", tokens[main_op].type);
   Assert((main_op >= l) && (main_op <= r), "Can't find valid main operator, expression invalid!");
-  if(prior <= 3)
+  if(prior <= 3) //double operator number
   {
-  unsigned int left = eval(l, main_op - 1);
-  unsigned int right = eval(main_op + 1, r);
+  unsigned long left = eval(l, main_op - 1);
+  unsigned long right = eval(main_op + 1, r);
   switch(tokens[main_op].type)
   {
-    case TK_ADD: return (unsigned int)left + (unsigned int)right;
-    case TK_SUB: return (unsigned int)left - (unsigned int)right;
-    case TK_MUL: return (unsigned int)left * (unsigned int)right;
-    case TK_DIV: return (unsigned)left / (unsigned)right;
+    case TK_ADD: return left + right;
+    case TK_SUB: return left - right;
+    case TK_MUL: return left * right;
+    case TK_DIV: return left / right;
+    case TK_EQ: return left == right;
+    case TK_NEQ: return left != right;
+    case TK_LOGIC_AND: return left && right;
     default: Assert(0, "Invalid main operator type!"); return -1;
   }
   }
-  else //its single number operation
+  if(prior == 4) //its single number operation
   {
-    Assert(tokens[main_op].type == TK_NEG, "The single operator isn't neg, so its invalid!");
+    Assert(tokens[main_op].type == TK_NEG || tokens[main_op].type == TK_DEREF, "The single operator isn't neg, so its invalid!");
    // int left = eval(l, main_op - 1), right = eval(main_op + 1, r);
     Assert(main_op == l, "Neg should be the same as l");
-    return (unsigned int)(-1) * (unsigned int)eval(main_op + 1, r);
+    if(tokens[main_op].type == TK_NEG)
+      return (unsigned long )(-1) * (unsigned int)eval(main_op + 1, r);
+    else //deref, memory deref
+      return (unsigned)vaddr_read(eval(main_op + 1, r), 4);
   }
   Assert(0, "Shouldn't reach here!");
   return -1;
@@ -263,7 +319,7 @@ unsigned int eval(int l, int r) //calculate expr begin in l and end in r, so the
 
 
 
-unsigned int expr(char *e, bool *success) {
+unsigned long expr(char *e, bool *success) {
   nr_token = 0;
   memset(tokens, 0, sizeof(tokens));
   if (!make_token(e)) {
@@ -296,7 +352,7 @@ unsigned int expr(char *e, bool *success) {
         }
     }
     */
-  unsigned int val = eval(0, nr_token - 1);
+  unsigned long val = eval(0, nr_token - 1);
   *success = true;
   return val;
 }

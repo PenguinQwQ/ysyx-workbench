@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
  // Log("%s", buffer);
   bool suc = false;
   FILE *vlog = fopen( "expr_verification.txt", "w");
-  for (int i = 1 ; i <= 100 ; i++)
+  for (int i = 1 ; i <= 10000 ; i++)
     { 
       memset(buf_res, 0, sizeof(buf_res));
       memset(buf_expr, 0, sizeof(buf_expr));
@@ -88,9 +88,9 @@ int main(int argc, char *argv[]) {
     }
     fclose(fp);
     fclose(vlog);
-*/
+  */
   engine_start();
 
   return is_exit_status_bad();
-//  return 0;
+ // return 0;
 }

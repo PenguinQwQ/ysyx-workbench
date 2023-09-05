@@ -36,7 +36,7 @@ int choose(int n)
   return rand() % n;
 }
 int top;//top of the buf
-const int MAX_LEN = 50000;
+const int MAX_LEN = 2000;
 bool next_not_zero = false;
 void gen_num() //num is 
 {
@@ -55,7 +55,7 @@ void gen_num() //num is
       next_not_zero = false;
     }
   top++;
-  int len = rand() % 8;//len is 0 to 7
+  int len = rand() % 6;//len is 0 to 5
   while(len--) buf[top++] = rand() % 10 + '0'; 
     if(insert_blank) buf[top++] = ' ';
 }
@@ -71,7 +71,7 @@ void gen_rand_op()
 {
   bool insert_blank = rand() % 10 > 5;
   if(insert_blank) buf[top++] = ' ';
-  int op = rand() % 4;
+  int op = rand() % 3;
   switch (op)
   {
   case 0:
@@ -83,16 +83,32 @@ void gen_rand_op()
   case 2:
     buf[top++] = '*';
     break;
-  default:
-    buf[top++] = '/';
-    next_not_zero = true;
-    break;
   }
   if(insert_blank) buf[top++] = ' ';
 }
 
+
+
+static void gen_div_op()
+{
+  bool insert_blank = rand() % 10 > 5;
+  if(insert_blank) buf[top++] = ' ';
+  unsigned int x3 = rand() % 9 + 1, x2 = rand() % 10, x1 = rand() % 10; 
+  unsigned int r3 = rand() % 9 + 1, r2 = rand() % 10, r1 = rand() % 10; 
+  unsigned int div = x1 + x2 * 10 + x3 * 100;
+  unsigned int rem = r1 + r2 * 10 + r3 * 100;
+  unsigned int left = div * rem;
+  char div_buf[1024];
+  sprintf(div_buf, "%u / %u \n", left, div);
+  char *ptr = div_buf;
+  while(*ptr != '\n') buf[top++] = *ptr++;
+  if(insert_blank) buf[top++] = ' ';
+}
+
+
 static void gen_rand_expr() {
   //at least 2 length
+  bool op_div = rand() % 10 < 3;
   bool insert_blank = rand() % 10 > 5;
   if(insert_blank) buf[top++] = ' ';
    switch (choose(3)) {
@@ -107,13 +123,17 @@ static void gen_rand_expr() {
         else gen_num();
         break;
     default: 
-        if(top <= MAX_LEN)
+        if(top <= MAX_LEN && op_div == false)
         {
           gen_rand_expr(); 
           gen_rand_op(); 
           gen_rand_expr(); 
         }
-        else gen_num();
+     else if(top <= MAX_LEN && op_div == true)
+     {
+          gen_div_op();
+     }
+     else gen_num();
       break;
   }
   if(insert_blank) buf[top++] = ' ';
