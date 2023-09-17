@@ -34,6 +34,26 @@ void device_update();
 
 void scan_all_watchpoints(bool *change);
 
+#ifdef CONFIG_IRINGBUF
+static char iringbuf[20][128];
+static uint32_t iringpc[20];
+static uint32_t icnt = 0;
+
+void iringbuf_print(uint32_t pc)
+{
+  for (int i = 0 ; i <= 19 ; i++)
+    {
+      if(iringpc[i] == pc)
+        printf("-->");
+      else
+        printf("   ");
+      printf("0x%8x     %s\n", iringpc[i], iringbuf[i]);
+    }
+}
+
+#endif
+
+
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
@@ -82,6 +102,15 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #else
   p[0] = '\0'; // the upstream llvm does not support loongarch32r
 #endif
+
+#ifdef CONFIG_IRINGBUF
+  strcpy(iringbuf[icnt], p);
+  iringpc[icnt] = s->pc;
+  icnt = (icnt + 1) % 20;
+#endif
+
+
+
 #endif
 }
 
@@ -130,13 +159,26 @@ void cpu_exec(uint64_t n) {
   switch (nemu_state.state) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
 
-    case NEMU_END: case NEMU_ABORT:
+    case NEMU_END: 
       Log("nemu: %s at pc = " FMT_WORD,
-          (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
-           (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
+          ((nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+      #ifdef CONFIG_IRINGBUF
+      if(nemu_state.halt_ret != 0)
+        iringbuf_print(nemu_state.halt_pc);
+      #endif
+      
+      statistic();  
+      break;
+    case NEMU_ABORT:
+      Log("nemu: %s at pc = " FMT_WORD,(ANSI_FMT("ABORT", ANSI_FG_RED)), nemu_state.halt_pc);
+      #ifdef CONFIG_IRINGBUF
+      iringbuf_print(nemu_state.halt_pc);
+      #endif
+      statistic();
+      break;
       // fall through
-    case NEMU_QUIT: statistic();
+    case NEMU_QUIT: statistic(); break;
   }
 }

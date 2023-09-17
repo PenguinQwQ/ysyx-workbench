@@ -99,8 +99,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+     //   Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+     //       i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -182,6 +182,23 @@ static bool make_token(char *e) {
 
 bool check_parentheses(int l, int r) //this function is used to check if the farmost parenthese matches
 {
+  if((tokens[l].type != TK_LEFTP) || (tokens[r].type != TK_RIGHTP))
+      return false;
+  int stop = 0;
+  for (int pos = l + 1 ; pos <= r - 1 ; pos++)
+    {
+      if(tokens[pos].type == TK_LEFTP)
+        stop++;
+      if(tokens[pos].type == TK_RIGHTP)
+        stop--;
+      if(stop < 0)
+        return false;//not match as ')' is more than '('
+    }
+  if(stop != 0)
+    return false; //not match as '(' != ')'
+  return true;
+
+  /*
   //use stack for left parenthese count
   int lpcnt = 0;
   for (int i = l ; i <= r ; i++)
@@ -210,10 +227,11 @@ bool check_parentheses(int l, int r) //this function is used to check if the far
     Assert(lpcnt >= 0, "The left and right parenthese is not match!");
     return false;
   }
+  */
 }
 
 //debug: fault expr (1 + 2 * 3) -( 4 + 6 / 2) 
-unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so the solution for the whole expression is eval(0, nr_token-1)
+word_t eval(int l, int r) //calculate expr begin in l and end in r, so the solution for the whole expression is eval(0, nr_token-1)
 {
   if(l > r)
     {
@@ -224,9 +242,9 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
   if (l == r)
   {
     if(tokens[l].type == TK_DEC) //Decimal Process
-      return (unsigned)strtoul(tokens[l].str, NULL, 10);
+      return (word_t)strtoul(tokens[l].str, NULL, 10);
     if(tokens[l].type == TK_HEX)
-      return (unsigned)strtoul(tokens[l].str, NULL, 16);
+      return (word_t)strtoul(tokens[l].str, NULL, 16);
     if(tokens[l].type == TK_REG)
       {
         bool suc;
@@ -256,7 +274,7 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
           inp--;
           continue;
       }
-      if(inp > 0 || tokens[i].type == TK_DEC) continue; //in a parenthese, or simple decimal number
+      if(inp > 0 || tokens[i].type == TK_DEC || tokens[i].type == TK_HEX || tokens[i].type == TK_REG) continue; //in a parenthese, or simple decimal number
       if(inp == 0 && (tokens[i].type == TK_EQ || tokens[i].type == TK_NEQ || tokens[i].type == TK_LOGIC_AND) && (prior >= 1))
       {
         main_op = i;
@@ -279,7 +297,6 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
       {
         if(prior > 4) //if it is the first neg, we should place it as a main operator, else use the left.
           main_op = i;
-
         prior = 4;
         continue;//shouldn't use the rightmost as the main operator!
       }
@@ -288,8 +305,8 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
   Assert((main_op >= l) && (main_op <= r), "Can't find valid main operator, expression invalid!");
   if(prior <= 3) //double operator number
   {
-  unsigned long left = eval(l, main_op - 1);
-  unsigned long right = eval(main_op + 1, r);
+  word_t left = eval(l, main_op - 1);
+  word_t right = eval(main_op + 1, r);
   switch(tokens[main_op].type)
   {
     case TK_ADD: return left + right;
@@ -308,9 +325,12 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
    // int left = eval(l, main_op - 1), right = eval(main_op + 1, r);
     Assert(main_op == l, "Neg should be the same as l");
     if(tokens[main_op].type == TK_NEG)
-      return (unsigned long )(-1) * (unsigned int)eval(main_op + 1, r);
+    {
+      word_t rev = -1;
+      return rev * eval(main_op + 1, r);
+    }
     else //deref, memory deref
-      return (unsigned)vaddr_read(eval(main_op + 1, r), 4);
+      return (word_t)vaddr_read(eval(main_op + 1, r), 4);
   }
   Assert(0, "Shouldn't reach here!");
   return -1;
@@ -319,7 +339,7 @@ unsigned long eval(int l, int r) //calculate expr begin in l and end in r, so th
 
 
 
-unsigned long expr(char *e, bool *success) {
+word_t expr(char *e, bool *success) {
   nr_token = 0;
   memset(tokens, 0, sizeof(tokens));
   if (!make_token(e)) {
@@ -352,7 +372,7 @@ unsigned long expr(char *e, bool *success) {
         }
     }
     */
-  unsigned long val = eval(0, nr_token - 1);
+  word_t val = eval(0, nr_token - 1);
   *success = true;
   return val;
 }

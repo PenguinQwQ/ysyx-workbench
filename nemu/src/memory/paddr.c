@@ -57,14 +57,43 @@ void init_mem() {
 }
 
 word_t paddr_read(paddr_t addr, int len) {
-  if (likely(in_pmem(addr))) return pmem_read(addr, len);
-  IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
+  if (likely(in_pmem(addr))) // default memory visiting
+  {
+      #ifdef CONFIG_MTRACE
+        Log("[MTRACE]: Successfully read 0x%8x byte memory from address 0x%8x", len, addr);
+      #endif
+      return pmem_read(addr, len);
+  }
+  IFDEF(CONFIG_DEVICE, 
+  #ifdef CONFIG_MTRACE //mmio
+    Log("[MTRACE]: Successfully read 0x%8x byte memory from address 0x%8x with mmio memory arrangement", len, addr);
+  #endif
+  return mmio_read(addr, len));
+  //Out of bound warning!
+  #ifdef CONFIG_MTRACE
+    Log("[MTRACE]: Failed to read 0x%8x byte memory from address 0x%8x. Out of bound!", len, addr);
+  #endif
+
   out_of_bound(addr);
   return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
-  if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
-  IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
+  if (likely(in_pmem(addr))) 
+  { 
+      #ifdef CONFIG_MTRACE
+        Log("[MTRACE]: Successfully write 0x%8x byte memory from address 0x%8x with content 0x%8x", len, addr, data);
+      #endif
+    pmem_write(addr, len, data); 
+    return; 
+  }
+  IFDEF(CONFIG_DEVICE, 
+      #ifdef CONFIG_MTRACE
+        Log("[MTRACE]: Successfully write 0x%8x byte memory from address 0x%8x with content 0x%8x by mmio memory mapping", len, addr, data);
+      #endif
+      mmio_write(addr, len, data); return);
+  #ifdef CONFIG_MTRACE
+    Log("[MTRACE]: Failed to write 0x%8x byte memory from address 0x%8x with content 0x%8x, out of bound!", len, addr, data);
+  #endif
   out_of_bound(addr);
 }

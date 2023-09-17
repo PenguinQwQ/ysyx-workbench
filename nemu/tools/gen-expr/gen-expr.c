@@ -88,7 +88,7 @@ void gen_rand_op()
 }
 
 
-
+static  char div_buf[1024];
 static void gen_div_op()
 {
   bool insert_blank = rand() % 10 > 5;
@@ -98,7 +98,7 @@ static void gen_div_op()
   unsigned int div = x1 + x2 * 10 + x3 * 100;
   unsigned int rem = r1 + r2 * 10 + r3 * 100;
   unsigned int left = div * rem;
-  char div_buf[1024];
+  memset(div_buf, 0, sizeof(div_buf));
   sprintf(div_buf, "%u / %u \n", left, div);
   char *ptr = div_buf;
   while(*ptr != '\n') buf[top++] = *ptr++;
