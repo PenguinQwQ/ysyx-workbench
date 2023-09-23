@@ -31,6 +31,10 @@ override ARGS += $(ARGS_DIFF) --batch
 IMG ?=
 NEMU_EXEC := $(BINARY) $(ARGS) $(IMG)
 
+# Here we add an elf_file to the arg
+
+
+
 run-env: $(BINARY) $(DIFF_REF_SO)
 
 run: run-env

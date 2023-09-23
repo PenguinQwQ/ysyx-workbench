@@ -164,6 +164,10 @@ config MTRACE
   bool "Enable the memory tracer"
   default "false"
 
+config FTRACE
+  depends on TRACE
+  bool "Enable the function call tracer"
+  default "false"
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF

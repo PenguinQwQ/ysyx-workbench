@@ -1,7 +1,7 @@
 #include <klib.h>
 #include <klib-macros.h>
 #include <stdint.h>
-
+ 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
 size_t strlen(const char *s) {
@@ -15,7 +15,7 @@ size_t strlen(const char *s) {
 }
 
 char *strcpy(char *dst, const char *src) {
-  return strncpy(dst, src, strlen(src));
+  return strncpy(dst, src, strlen(src) + 1); //to assure string end with '\0', add one more byte for '\0'
 }
 
 char *strncpy(char *dst, const char *src, size_t n) {
@@ -41,16 +41,12 @@ char *strcat(char *dst, const char *src) {
   return strncat(dst, src, strlen(src));
 }
 
-int strcmp(const char *p1, const char *p2) {
-  while((*p1 != '\0') && (*p2 != '\0'))
-    {
-      if(*p1 < *p2) return -1;
-      if(*p1 > *p2) return 1;
-      p1++; p2++;
-    }
-    if(*p1 < *p2) return -1;
-    if(*p1 > *p2) return 1;
-    return 0;
+int strcmp(const char *s1, const char *s2) {
+  while(*s1 && (*s1 == *s2))
+  {
+    s1++; s2++;
+  }
+  return *(const unsigned char *)s1 - *(const unsigned char *)s2;
 }
 
 int strncmp(const char *p1, const char *p2, size_t n) {
@@ -74,8 +70,8 @@ void *memset(void *s, int c, size_t n) {
   unsigned char ch = (unsigned char)c;
   unsigned char *m = (unsigned char *)s;
   for (int i = 0 ; i < n ; i++)
-    m[i] = ch;
-  return (void *)m;
+    *m++ = ch;
+  return s;
 }
 
 void *memmove(void *dst, const void *src, size_t n) {
@@ -83,7 +79,12 @@ void *memmove(void *dst, const void *src, size_t n) {
 }
 
 void *memcpy(void *out, const void *in, size_t n) {
-  panic("Not implemented");
+  //Undefined when section is intersacted
+  unsigned char *out_p = (unsigned char *)out;
+  unsigned char *in_p = (unsigned char *)in;
+  for(int i = 0 ; i <= n - 1 ; i++)
+    out_p[i] = in_p[i];
+  return out;
 }
 
 int memcmp(const void *s1, const void *s2, size_t n) {

@@ -18,6 +18,11 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 
+
+#ifdef CONFIG_FTRACE
+void detect_and_display_function_call(word_t now_pc, word_t jal_addr, word_t ival);
+#endif
+
 #define R(i) gpr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
@@ -72,9 +77,15 @@ static int decode_exec(Decode *s) {
   //J-type
   INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal  ,  J , R(rd) = s->snpc; 
                                                                 s->dnpc = s->pc + imm; 
+                                                                #ifdef CONFIG_FTRACE
+                                                                detect_and_display_function_call(s->pc, s->dnpc, (word_t)s->isa.inst.val);
+                                                                #endif 
                                                                 );
   INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr ,  I , R(rd) = s->snpc;
                                                                 s->dnpc = (src1 + imm) & (0xFFFFFFFE); 
+                                                                #ifdef CONFIG_FTRACE
+                                                                detect_and_display_function_call(s->pc, s->dnpc,  (word_t)s->isa.inst.val);
+                                                                #endif
                                                                 );
   //B-type
   INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq  ,  B , if((sword_t)src1 == (sword_t)src2) s->dnpc = s->pc + imm);
@@ -140,7 +151,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("0100000 ????? ????? 101 ????? 01100 11", sra,  R ,  R(rd) = ((sword_t)src1 >> (src2 & 0x1F)));
   INSTPAT("0000000 ????? ????? 110 ????? 01100 11", or,   R,   R(rd) = src1 | src2);
   INSTPAT("0000000 ????? ????? 111 ????? 01100 11", and,  R ,  R(rd) = src1 & src2);
-
+ 
 //multiplication and divide
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul, R, R(rd) = BITS((int64_t)src1 * (int64_t)src2, 31, 0));
   INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh, R, R(rd) = BITS(1ll * (sword_t)src1 * (sword_t)src2, 63, 32));

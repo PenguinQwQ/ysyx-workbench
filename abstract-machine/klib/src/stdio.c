@@ -24,7 +24,7 @@ static uint32_t width;
 #define FLAG_ZERO_PAD 0x10
 #define FLAG_SPACE_PAD 0x20
 
-static char minint[] = "-2147483648";
+static char minint[] = "8463847412-";
 static uint32_t int_types;
 #define INT_TYPE_POS 0x01
 #define INT_TYPE_NEG 0x02
@@ -47,6 +47,8 @@ char *_write_int(char *out, int d)
   {
     wid = 11;
     top = 12;
+ //   for (int i = 0 ; i <= 11 ; i++)
+ //     num_buf[i] = minint[i];
     strcpy(num_buf, minint);
     goto WRITE_OUT;
   }
