@@ -20,7 +20,7 @@
 
 typedef void(*io_callback_t)(uint32_t, int, bool);
 uint8_t* new_space(int size);
-
+ 
 typedef struct {
   const char *name;
   // we treat ioaddr_t as paddr_t here
@@ -34,11 +34,12 @@ static inline bool map_inside(IOMap *map, paddr_t addr) {
   return (addr >= map->low && addr <= map->high);
 }
 
+//find the corresponding IOMap struct id for map_read
 static inline int find_mapid_by_addr(IOMap *maps, int size, paddr_t addr) {
   int i;
   for (i = 0; i < size; i ++) {
     if (map_inside(maps + i, addr)) {
-      difftest_skip_ref();
+      difftest_skip_ref(); 
       return i;
     }
   }

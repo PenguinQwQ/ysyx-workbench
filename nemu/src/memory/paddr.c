@@ -57,7 +57,7 @@ void init_mem() {
 }
 
 word_t paddr_read(paddr_t addr, int len) {
-  if (likely(in_pmem(addr))) // default memory visiting
+  if (likely(in_pmem(addr))) // default memory visiting, physical memory read
   {
       #ifdef CONFIG_MTRACE
         Log("[MTRACE]: Successfully read 0x%08x byte memory from address 0x%8x", len, addr);

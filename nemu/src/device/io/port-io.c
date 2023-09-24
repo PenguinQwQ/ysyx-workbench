@@ -18,10 +18,13 @@
 #define PORT_IO_SPACE_MAX 65535
 
 #define NR_MAP 16
-static IOMap maps[NR_MAP] = {};
+static IOMap maps[NR_MAP] = {}; //this maps are created for port-io
 static int nr_map = 0;
 
 /* device interface */
+/*
+add_pio_map function is used to create a port-io IOMap struct. This struct will be registered
+*/
 void add_pio_map(const char *name, ioaddr_t addr, void *space, uint32_t len, io_callback_t callback) {
   assert(nr_map < NR_MAP);
   assert(addr + len <= PORT_IO_SPACE_MAX);
@@ -37,7 +40,7 @@ void add_pio_map(const char *name, ioaddr_t addr, void *space, uint32_t len, io_
 uint32_t pio_read(ioaddr_t addr, int len) {
   assert(addr + len - 1 < PORT_IO_SPACE_MAX);
   int mapid = find_mapid_by_addr(maps, nr_map, addr);
-  assert(mapid != -1);
+  assert(mapid != -1); //assure we find the valid port-io mapper IOMap struct
   return map_read(addr, len, &maps[mapid]);
 }
 

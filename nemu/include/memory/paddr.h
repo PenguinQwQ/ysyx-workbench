@@ -28,7 +28,8 @@ uint8_t* guest_to_host(paddr_t paddr);
 paddr_t host_to_guest(uint8_t *haddr);
 
 static inline bool in_pmem(paddr_t addr) {
-  return addr - CONFIG_MBASE < CONFIG_MSIZE;
+  return addr - CONFIG_MBASE < CONFIG_MSIZE; // means addr is in range [0x80000000, 0x87ffffff]
+  //the mmio, or device mapped space is in [0xa10000000,0xa1800000]
 }
 
 word_t paddr_read(paddr_t addr, int len);

@@ -5,9 +5,7 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-int printf(const char *fmt, ...) {
-  panic("Not implemented");
-}
+
 
 /*
 1. vsprintf is null ended?
@@ -235,6 +233,21 @@ int sprintf(char *out, const char *fmt, ...) {
   va_end(ap);
   return ret;
 }
+static char print_buf[65535];
+int printf(const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+  int ret = vsprintf(print_buf, format, ap);
+  va_end(ap);
+  int len = strlen(print_buf);
+  for (int i = 0 ; i < len ; i++)
+    putch(print_buf[i]); //The IOE provides API for the upper klib, so we use putch to print char
+    //by the serial.
+  return ret;
+}
+
+
 
 //Printf n byte contents in ... into the out
 int snprintf(char *out, size_t n, const char *fmt, ...) {
