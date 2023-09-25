@@ -9,7 +9,7 @@
 * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-*
+* 
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
@@ -17,16 +17,21 @@
 #include <device/map.h>
 
 #define SCREEN_W (MUXDEF(CONFIG_VGA_SIZE_800x600, 800, 400))
+//SCREEN_W = 400
 #define SCREEN_H (MUXDEF(CONFIG_VGA_SIZE_800x600, 600, 300))
+//SCREEN_H = 300
 
+//will return 400
 static uint32_t screen_width() {
   return MUXDEF(CONFIG_TARGET_AM, io_read(AM_GPU_CONFIG).width, SCREEN_W);
 }
 
+//will return 300
 static uint32_t screen_height() {
   return MUXDEF(CONFIG_TARGET_AM, io_read(AM_GPU_CONFIG).height, SCREEN_H);
 }
 
+//size is in bytes, 300 * 400 * 4 bytes are required, 480000 address space at least
 static uint32_t screen_size() {
   return screen_width() * screen_height() * sizeof(uint32_t);
 }
@@ -73,6 +78,12 @@ static inline void update_screen() {
 void vga_update_screen() {
   // TODO: call `update_screen()` when the sync register is non-zero,
   // then zero out the sync register
+  uint8_t *sync_signal = (uint8_t *)(&vgactl_port_base[1]);
+  if(*sync_signal == 1) //as the SYNC_ADDR is VGACTL_ADDR+4, and bool type
+  {//SYNC_ADDR will be written 1 if set
+    update_screen();
+    *sync_signal = 0;
+  }
 }
 
 void init_vga() {
